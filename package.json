@@ -1,23 +1,125 @@
 {
   "name": "autoscribe",
   "displayName": "AutoScribe",
-  "description": "Automatic note backup assistant.",
+  "publisher": "autoscribe",
+  "description": "Automatic zero-setup note backup and synchronization for Visual Studio Code.",
   "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noyankgtkin/AutoScribe.git"
+  },
+  "bugs": {
+    "url": "https://github.com/noyankgtkin/AutoScribe/issues"
+  },
+  "homepage": "https://github.com/noyankgtkin/AutoScribe#readme",
+  "keywords": [
+    "note",
+    "notes",
+    "backup",
+    "sync",
+    "git",
+    "github",
+    "autosave",
+    "obsidian",
+    "notion"
+  ],
   "engines": {
     "vscode": "^1.125.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Utilities"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "autoscribe.helloWorld",
-        "title": "Hello World"
+        "command": "autoscribe.setup",
+        "title": "AutoScribe: Setup Notes Backup"
+      },
+      {
+        "command": "autoscribe.syncNow",
+        "title": "AutoScribe: Backup Now"
+      },
+      {
+        "command": "autoscribe.toggle",
+        "title": "AutoScribe: Toggle Auto-Backup"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "AutoScribe",
+      "properties": {
+        "autoscribe.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable AutoScribe automatic backup."
+        },
+        "autoscribe.backupMode": {
+          "type": "string",
+          "enum": [
+            "onSave",
+            "interval",
+            "both",
+            "manual"
+          ],
+          "default": "onSave",
+          "enumDescriptions": [
+            "Trigger backup when a file is saved",
+            "Trigger backup periodically at set intervals",
+            "Trigger backup on save AND periodically",
+            "Manual backup only (via syncNow command or status bar click)"
+          ],
+          "description": "Backup trigger mode."
+        },
+        "autoscribe.intervalMinutes": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "description": "Interval in minutes for periodic backups (when mode is 'interval' or 'both')."
+        },
+        "autoscribe.gitAutoPush": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable automatic pushing committed changes to remote repository."
+        },
+        "autoscribe.pushStrategy": {
+          "type": "string",
+          "enum": [
+            "onCommit",
+            "interval",
+            "manual"
+          ],
+          "default": "interval",
+          "enumDescriptions": [
+            "Push immediately after every local commit",
+            "Push periodically at set intervals",
+            "Push only on manual sync or status bar click"
+          ],
+          "description": "Remote Git Push strategy."
+        },
+        "autoscribe.pushIntervalMinutes": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "description": "Interval in minutes for pushing local commits to remote repository (when pushStrategy is 'interval')."
+        },
+        "autoscribe.commitMessagePrefix": {
+          "type": "string",
+          "default": "AutoScribe Backup:",
+          "description": "Prefix used for git commit messages."
+        },
+        "autoscribe.syncOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Perform a backup automatically when VS Code opens."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

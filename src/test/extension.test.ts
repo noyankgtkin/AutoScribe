@@ -1,15 +1,16 @@
 import * as assert from 'assert';
-
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
 import * as vscode from 'vscode';
-// import * as myExtension from '../../extension';
 
-suite('Extension Test Suite', () => {
-	vscode.window.showInformationMessage('Start all tests.');
-
-	test('Sample test', () => {
-		assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-		assert.strictEqual(-1, [1, 2, 3].indexOf(0));
-	});
+suite('Extension Integration Tests', () => {
+    test('Extension triggers activation and registers commands', async () => {
+        const ext = vscode.extensions.all.find(e => e.packageJSON && e.packageJSON.name === 'autoscribe');
+        assert.ok(ext, 'AutoScribe extension should be loaded in VS Code test environment');
+        if (ext && !ext.isActive) {
+            await ext.activate();
+        }
+        const commands = await vscode.commands.getCommands(true);
+        assert.ok(commands.includes('autoscribe.setup'), 'autoscribe.setup command registered');
+        assert.ok(commands.includes('autoscribe.syncNow'), 'autoscribe.syncNow command registered');
+        assert.ok(commands.includes('autoscribe.toggle'), 'autoscribe.toggle command registered');
+    });
 });

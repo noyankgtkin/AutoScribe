@@ -94,7 +94,7 @@
             "interval",
             "manual"
           ],
-          "default": "interval",
+          "default": "onCommit",
           "enumDescriptions": [
             "Push immediately after every local commit",
             "Push periodically at set intervals",

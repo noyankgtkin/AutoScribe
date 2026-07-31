@@ -22,7 +22,7 @@ export class ConfigManager {
             backupMode: config.get<BackupMode>('backupMode', 'onSave'),
             intervalMinutes: Math.max(1, config.get<number>('intervalMinutes', 15)),
             gitAutoPush: config.get<boolean>('gitAutoPush', true),
-            pushStrategy: config.get<PushStrategy>('pushStrategy', 'interval'),
+            pushStrategy: config.get<PushStrategy>('pushStrategy', 'onCommit'),
             pushIntervalMinutes: Math.max(1, config.get<number>('pushIntervalMinutes', 15)),
             commitMessagePrefix: config.get<string>('commitMessagePrefix', 'AutoScribe Backup:'),
             syncOnStartup: config.get<boolean>('syncOnStartup', false)

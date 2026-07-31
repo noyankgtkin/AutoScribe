@@ -150,12 +150,21 @@ export class GitService {
                 pushed: true,
                 message: 'Pushed local commits to remote repository.'
             };
-        } catch (error: any) {
-            return {
-                success: false,
-                pushed: false,
-                message: `Git push failed: ${error.message || String(error)}`
-            };
+        } catch {
+            try {
+                await execFileAsync('git', ['push', '-u', 'origin', 'HEAD'], { cwd: root });
+                return {
+                    success: true,
+                    pushed: true,
+                    message: 'Pushed local commits to remote repository.'
+                };
+            } catch (fallbackError: any) {
+                return {
+                    success: false,
+                    pushed: false,
+                    message: `Git push failed: ${fallbackError.message || String(fallbackError)}`
+                };
+            }
         }
     }
 

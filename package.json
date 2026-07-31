@@ -3,7 +3,7 @@
   "displayName": "AutoScribe",
   "publisher": "noyankgtkin",
   "description": "Automatic zero-setup note backup and synchronization for Visual Studio Code.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "icon": "icon.png",
   "license": "MIT",
   "repository": {
@@ -29,7 +29,8 @@
     "vscode": "^1.125.0"
   },
   "categories": [
-    "Other"
+    "SCM Providers",
+    "Notebooks"
   ],
   "activationEvents": [
     "onStartupFinished"

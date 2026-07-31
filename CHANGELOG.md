@@ -2,6 +2,11 @@
 
 All notable changes to the "AutoScribe" extension will be documented in this file.
 
+## [0.0.3] - 2026-07-31
+
+### Changed
+- Updated Marketplace categories to `SCM Providers` and `Notebooks` for better discoverability.
+
 ## [0.0.2] - 2026-07-31
 
 ### Added

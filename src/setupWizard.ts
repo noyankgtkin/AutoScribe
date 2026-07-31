@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { GitHubService } from './githubService';
 import { GitService } from './gitService';
 import { WorkspaceSafetyService } from './workspaceSafetyService';
@@ -10,29 +12,6 @@ export class SetupWizard {
         context: vscode.ExtensionContext,
         onComplete: () => void
     ): Promise<void> {
-        const root = gitService.getWorkspaceRoot();
-        const isCurrentNotesWorkspace = root ? WorkspaceSafetyService.isNotesWorkspace(root) : false;
-
-        if (!root || !isCurrentNotesWorkspace) {
-            const folderUri = await vscode.window.showOpenDialog({
-                canSelectFolders: true,
-                canSelectFiles: false,
-                canSelectMany: false,
-                openLabel: 'Select Notes Folder'
-            });
-
-            if (!folderUri || folderUri.length === 0) {
-                return;
-            }
-
-            const targetPath = folderUri[0].fsPath;
-            WorkspaceSafetyService.markAsNotesWorkspace(targetPath);
-            WorkspaceMemoryService.addKnownNotesWorkspace(context, targetPath);
-
-            await vscode.commands.executeCommand('vscode.openFolder', folderUri[0], { forceNewWindow: true });
-            return;
-        }
-
         const session = await GitHubService.getSession();
         if (!session) {
             vscode.window.showErrorMessage('GitHub authentication was not completed.');
@@ -41,13 +20,13 @@ export class SetupWizard {
 
         const selection = await vscode.window.showQuickPick([
             {
-                label: '$(plus) Create new private repository on GitHub',
-                description: 'Create a private GitHub repo (e.g. autoscribe-notes) for automatic sync',
+                label: '$(plus) Create new private notes repository & folder',
+                description: 'Enter repo name, pick base location, and create folder automatically',
                 action: 'create'
             },
             {
-                label: '$(repo) Select an existing GitHub repository',
-                description: 'Connect this folder to an existing GitHub repo in your account',
+                label: '$(repo) Connect an existing GitHub repository',
+                description: 'Select an existing GitHub repo and connect it to a local folder',
                 action: 'existing'
             }
         ], {
@@ -58,60 +37,130 @@ export class SetupWizard {
             return;
         }
 
-        let remoteUrl: string | undefined;
-
         if (selection.action === 'create') {
-            const repoName = await vscode.window.showInputBox({
-                prompt: 'Enter a name for your private GitHub notes repository',
-                value: 'autoscribe-notes',
-                validateInput: input => input.trim().length === 0 ? 'Repository name cannot be empty' : null
-            });
-
-            if (!repoName) {
-                return;
-            }
-
-            const createdRepo = await GitHubService.createPrivateRepo(repoName.trim());
-            if (!createdRepo) {
-                return;
-            }
-            remoteUrl = createdRepo.cloneUrl;
-
+            await this.handleCreateFlow(context, onComplete);
         } else if (selection.action === 'existing') {
-            vscode.window.showInformationMessage('Fetching your GitHub repositories...');
-            const repos = await GitHubService.listUserRepos();
-
-            if (repos.length === 0) {
-                vscode.window.showWarningMessage('No repositories found in your GitHub account.');
-                return;
-            }
-
-            const repoSelection = await vscode.window.showQuickPick(
-                repos.map(r => ({
-                    label: `$(repo) ${r.fullName}`,
-                    description: r.private ? 'Private' : 'Public',
-                    repo: r
-                })),
-                { placeHolder: 'Select a GitHub repository to connect' }
-            );
-
-            if (!repoSelection) {
-                return;
-            }
-            remoteUrl = repoSelection.repo.cloneUrl;
+            await this.handleExistingFlow(context, onComplete);
         }
+    }
 
-        if (!remoteUrl) {
+    private static async handleCreateFlow(
+        context: vscode.ExtensionContext,
+        onComplete: () => void
+    ): Promise<void> {
+        const repoName = await vscode.window.showInputBox({
+            prompt: 'Enter a name for your private GitHub notes repository',
+            value: 'autoscribe-notes',
+            validateInput: input => input.trim().length === 0 ? 'Repository name cannot be empty' : null
+        });
+
+        if (!repoName) {
             return;
         }
 
-        WorkspaceSafetyService.markAsNotesWorkspace(root);
-        WorkspaceMemoryService.addKnownNotesWorkspace(context, root);
+        const cleanRepoName = repoName.trim();
 
-        const initResult = await gitService.initializeRepo(remoteUrl);
+        const baseFolderUri = await vscode.window.showOpenDialog({
+            canSelectFolders: true,
+            canSelectFiles: false,
+            canSelectMany: false,
+            openLabel: 'Select Base Directory for Notes Folder'
+        });
+
+        if (!baseFolderUri || baseFolderUri.length === 0) {
+            return;
+        }
+
+        const parentPath = baseFolderUri[0].fsPath;
+        const targetFolderPath = path.join(parentPath, cleanRepoName);
+
+        try {
+            if (!fs.existsSync(targetFolderPath)) {
+                fs.mkdirSync(targetFolderPath, { recursive: true });
+            }
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to create local notes folder: ${err.message}`);
+            return;
+        }
+
+        vscode.window.showInformationMessage(`Creating private GitHub repository '${cleanRepoName}'...`);
+        const createdRepo = await GitHubService.createPrivateRepo(cleanRepoName);
+        if (!createdRepo) {
+            return;
+        }
+
+        WorkspaceSafetyService.markAsNotesWorkspace(targetFolderPath);
+        WorkspaceMemoryService.addKnownNotesWorkspace(context, targetFolderPath);
+
+        const targetGitService = new GitService(targetFolderPath);
+        const initResult = await targetGitService.initializeRepo(createdRepo.cloneUrl);
+
         if (initResult.success) {
             vscode.window.showInformationMessage(`AutoScribe: ${initResult.message}`);
             onComplete();
+
+            await vscode.commands.executeCommand(
+                'vscode.openFolder',
+                vscode.Uri.file(targetFolderPath),
+                { forceNewWindow: true }
+            );
+        } else {
+            vscode.window.showErrorMessage(`AutoScribe Setup Error: ${initResult.message}`);
+        }
+    }
+
+    private static async handleExistingFlow(
+        context: vscode.ExtensionContext,
+        onComplete: () => void
+    ): Promise<void> {
+        vscode.window.showInformationMessage('Fetching your GitHub repositories...');
+        const repos = await GitHubService.listUserRepos();
+
+        if (repos.length === 0) {
+            vscode.window.showWarningMessage('No repositories found in your GitHub account.');
+            return;
+        }
+
+        const repoSelection = await vscode.window.showQuickPick(
+            repos.map(r => ({
+                label: `$(repo) ${r.fullName}`,
+                description: r.private ? 'Private' : 'Public',
+                repo: r
+            })),
+            { placeHolder: 'Select a GitHub repository to connect' }
+        );
+
+        if (!repoSelection) {
+            return;
+        }
+
+        const folderUri = await vscode.window.showOpenDialog({
+            canSelectFolders: true,
+            canSelectFiles: false,
+            canSelectMany: false,
+            openLabel: 'Select Local Notes Folder to Connect'
+        });
+
+        if (!folderUri || folderUri.length === 0) {
+            return;
+        }
+
+        const targetFolderPath = folderUri[0].fsPath;
+        WorkspaceSafetyService.markAsNotesWorkspace(targetFolderPath);
+        WorkspaceMemoryService.addKnownNotesWorkspace(context, targetFolderPath);
+
+        const targetGitService = new GitService(targetFolderPath);
+        const initResult = await targetGitService.initializeRepo(repoSelection.repo.cloneUrl);
+
+        if (initResult.success) {
+            vscode.window.showInformationMessage(`AutoScribe: ${initResult.message}`);
+            onComplete();
+
+            await vscode.commands.executeCommand(
+                'vscode.openFolder',
+                vscode.Uri.file(targetFolderPath),
+                { forceNewWindow: true }
+            );
         } else {
             vscode.window.showErrorMessage(`AutoScribe Setup Error: ${initResult.message}`);
         }

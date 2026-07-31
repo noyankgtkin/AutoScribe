@@ -1,7 +1,7 @@
 {
   "name": "autoscribe",
   "displayName": "AutoScribe",
-  "publisher": "autoscribe",
+  "publisher": "noyankgtkin",
   "description": "Automatic zero-setup note backup and synchronization for Visual Studio Code.",
   "version": "0.0.1",
   "license": "MIT",

@@ -2,6 +2,11 @@
 
 All notable changes to the "AutoScribe" extension will be documented in this file.
 
+## [0.0.4] - 2026-07-31
+
+### Changed
+- Updated official modern logo icon for VS Code Marketplace release.
+
 ## [0.0.3] - 2026-07-31
 
 ### Changed
